@@ -1,25 +1,36 @@
 // server/index.ts
 import express from "express";
+import { createServer } from "http";
 import path from "path";
+import { fileURLToPath } from "url";
 
-// Cria a aplicação Express
-const app = express();
+// O uso de import.meta.url e fileURLToPath é necessário para obter o __dirname em módulos ES.
+var _filename = fileURLToPath(import.meta.url);
+var _dirname = path.dirname(_filename);
 
-// Define o caminho para a pasta 'public'.
-// 'process.cwd()' retorna o diretório raiz do projeto no ambiente da Vercel.
-const staticPath = path.resolve(process.cwd(), "public");
+async function startServer() {
+  const app = express();
+  const server = createServer(app);
 
-// Configura o Express para servir os arquivos estáticos (CSS, JS, imagens)
-// que estão na pasta 'public'.
-app.use(express.static(staticPath));
+  // **CORREÇÃO APLICADA AQUI:**
+  // Em produção (Vercel), o arquivo index.js está em `dist/`.
+  // O frontend está em `dist/public/`.
+  // O caminho deve ser ajustado para apontar para a pasta `public` dentro de `dist`.
+  const staticPath =
+    process.env.NODE_ENV === "production"
+      ? path.resolve(_dirname, "public") // Se o _dirname for `dist/`, "public" aponta para `dist/public`
+      : path.resolve(_dirname, "..", "dist", "public"); // Caminho de desenvolvimento
 
-// Cria uma rota "catch-all" (*). Qualquer requisição que não encontrou um arquivo estático
-// será respondida com o 'index.html'. Isso é essencial para Single Page Applications (SPAs).
-app.get("*", (_req, res) => {
-  res.sendFile(path.join(staticPath, "index.html"));
-});
+  app.use(express.static(staticPath));
 
-// Exporta a aplicação 'app'.
-// A Vercel vai pegar essa exportação e cuidar de todo o gerenciamento do servidor.
-// Por isso, NÃO usamos app.listen() aqui.
-export default app;
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(staticPath, "index.html"));
+  });
+
+  const port = process.env.PORT || 3e3;
+  server.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}/`);
+  });
+}
+
+startServer().catch(console.error);
