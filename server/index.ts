@@ -10,23 +10,24 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
-  // No Vercel, o dist/index.js está em /var/task/dist/index.js e os estáticos em /var/task/dist/public.
-  // O __dirname será /var/task/dist.
-  // Para produção, o caminho deve ser path.resolve(__dirname, "public").
-  // Para desenvolvimento, o caminho deve ser path.resolve(__dirname, "..", "..", "dist", "public")
-  // se o script for executado de server/index.ts.
-  // No entanto, o script de build compila para dist/index.js, então a lógica de desenvolvimento
-  // original (que você tinha na imagem) estava incorreta.
-  // Vou usar a lógica que o Vercel espera para o arquivo compilado.
+  // A lógica para o caminho estático é simplificada.
+  // O script de build (`package.json`: "build": "vite build && esbuild...")
+  // compila o frontend para `dist/` e o backend (index.ts) para `dist/index.js`.
+  // Quando `dist/index.js` é executado, `__dirname` aponta para `dist/`.
+  // Os arquivos estáticos do frontend (HTML, CSS, JS, assets) estão diretamente em `dist/`.
 
-  const staticPath =
-    process.env.NODE_ENV === "production"
-      ? path.resolve(__dirname, "public") // Caminho correto para o arquivo compilado em dist/
-      : path.resolve(__dirname, "..", "..", "dist", "public"); // Caminho para dev (se executado de server/index.ts)
+  // Em produção, o caminho estático é o próprio diretório onde o script está rodando (`dist/`).
+  const staticPath = __dirname;
+
+  // Em desenvolvimento, este servidor Express não deve ser usado.
+  // O desenvolvimento deve usar o servidor de desenvolvimento do Vite (`npm run dev`).
+  // A verificação `process.env.NODE_ENV === "production"` é redundante se o servidor
+  // só for iniciado com `npm run start` (que define NODE_ENV=production).
 
   app.use(express.static(staticPath));
 
   app.get("*", (_req, res) => {
+    // Garante que o index.html seja servido a partir do diretório estático
     res.sendFile(path.join(staticPath, "index.html"));
   });
 
